@@ -1,0 +1,3 @@
+$ErrorActionPreference = "Stop"
+
+ollama serve
