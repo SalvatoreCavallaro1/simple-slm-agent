@@ -26,6 +26,20 @@ This project only supports local Ollama calls.
 
 Before testing the agent, make sure Ollama is installed, running locally, and has at least one model already pulled. The CLI and API both depend on a live local Ollama instance.
 
+If you start from the repository root, move into the project folder first. The setup and run commands below assume your current directory is `slm-langgraph-playground/`.
+
+macOS or Linux:
+
+```bash
+cd slm-langgraph-playground
+```
+
+Windows PowerShell:
+
+```powershell
+cd .\slm-langgraph-playground
+```
+
 ### macOS or Linux
 
 If Ollama is not installed yet:
@@ -153,6 +167,18 @@ Langfuse self-hosting reference:
 ## Run the Project
 
 Prerequisite: Ollama must already be running locally before you test the agent. If it is not running, model calls will fail.
+
+If you are at the repository root, enter the project folder before running these commands:
+
+```bash
+cd slm-langgraph-playground
+```
+
+Windows PowerShell:
+
+```powershell
+cd .\slm-langgraph-playground
+```
 
 ### CLI
 
@@ -326,6 +352,20 @@ Easy extensions:
 ## Development
 
 ### Useful Commands
+
+These commands also assume you are inside `slm-langgraph-playground/`.
+
+macOS or Linux:
+
+```bash
+cd slm-langgraph-playground
+```
+
+Windows PowerShell:
+
+```powershell
+cd .\slm-langgraph-playground
+```
 
 Make targets:
 
