@@ -285,7 +285,10 @@ If these variables are set, traces are sent automatically:
 LANGFUSE_PUBLIC_KEY=
 LANGFUSE_SECRET_KEY=
 LANGFUSE_HOST=https://cloud.langfuse.com
+LANGFUSE_PROJECT_NAME=
 ```
+
+`LANGFUSE_PROJECT_NAME` is an app-level metadata field added to traces. Langfuse still selects the actual project from the API keys.
 
 If the keys are empty, the app runs normally with tracing disabled.
 

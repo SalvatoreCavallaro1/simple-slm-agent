@@ -55,8 +55,19 @@ def _observation(
         yield observation
 
 
+def _langfuse_metadata(
+    settings: Settings,
+    metadata: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    merged_metadata = dict(metadata or {})
+    if settings.langfuse_project_name:
+        merged_metadata["project_name"] = settings.langfuse_project_name
+    return merged_metadata
+
+
 def build_graph(
     ollama_client: OllamaClient,
+    settings: Settings,
     langfuse_client: Langfuse | None = None,
 ) -> Any:
     workflow = StateGraph(GraphState)
@@ -73,7 +84,10 @@ def build_graph(
             langfuse_client,
             name="model_call",
             input={"model": state["model"], "messages": state["messages"]},
-            metadata={"model": state["model"], "temperature": 0},
+            metadata=_langfuse_metadata(
+                settings,
+                {"model": state["model"], "temperature": 0},
+            ),
         ) as observation:
             response = ollama_client.chat(
                 model=state["model"],
@@ -102,7 +116,10 @@ def build_graph(
             name="evaluation",
             input={"model": state["model"], "response": state["response"]},
             output=result,
-            metadata={"model": state["model"], "latency_ms": result["metrics"]["latency_ms"]},
+            metadata=_langfuse_metadata(
+                settings,
+                {"model": state["model"], "latency_ms": result["metrics"]["latency_ms"]},
+            ),
         ):
             logger.info(
                 "Evaluation completed",
@@ -138,14 +155,17 @@ def run_graph(
     runtime_settings = settings or load_settings()
     selected_model = get_model(model, runtime_settings)
     client = ollama_client or OllamaClient.from_settings(runtime_settings)
-    graph = build_graph(client, langfuse_client=langfuse_client)
+    graph = build_graph(client, runtime_settings, langfuse_client=langfuse_client)
 
     with _observation(
         langfuse_client,
         name="graph_execution",
         as_type="chain",
         input={"prompt": prompt, "model": selected_model},
-        metadata={"available_models": list(runtime_settings.available_models)},
+        metadata=_langfuse_metadata(
+            runtime_settings,
+            {"available_models": list(runtime_settings.available_models)},
+        ),
     ) as observation:
         final_state = graph.invoke(
             {

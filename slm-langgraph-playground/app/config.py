@@ -31,6 +31,7 @@ class Settings:
     langfuse_public_key: str | None = None
     langfuse_secret_key: str | None = None
     langfuse_host: str = "https://cloud.langfuse.com"
+    langfuse_project_name: str | None = None
     log_level: str = "INFO"
     request_timeout_s: int = 120
 
@@ -50,6 +51,7 @@ def load_settings() -> Settings:
     public_key = os.getenv("LANGFUSE_PUBLIC_KEY", "").strip() or None
     secret_key = os.getenv("LANGFUSE_SECRET_KEY", "").strip() or None
     langfuse_host = os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com").strip()
+    langfuse_project_name = os.getenv("LANGFUSE_PROJECT_NAME", "").strip() or None
     log_level = os.getenv("LOG_LEVEL", "INFO").strip().upper() or "INFO"
 
     return Settings(
@@ -60,5 +62,6 @@ def load_settings() -> Settings:
         langfuse_public_key=public_key,
         langfuse_secret_key=secret_key,
         langfuse_host=langfuse_host,
+        langfuse_project_name=langfuse_project_name,
         log_level=log_level,
     )
