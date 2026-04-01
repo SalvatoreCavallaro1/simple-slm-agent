@@ -7,6 +7,17 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 
+def _clean_env_value(raw_value: str | None) -> str | None:
+    if raw_value is None:
+        return None
+
+    cleaned_value = raw_value.strip()
+    if len(cleaned_value) >= 2 and cleaned_value[0] == cleaned_value[-1] and cleaned_value[0] in {"'", '"'}:
+        cleaned_value = cleaned_value[1:-1].strip()
+
+    return cleaned_value
+
+
 def _parse_available_models(raw_value: str | None, primary_model: str) -> tuple[str, ...]:
     if raw_value:
         parsed_models = tuple(model.strip() for model in raw_value.split(",") if model.strip())
@@ -45,18 +56,24 @@ def load_settings() -> Settings:
     env_path = root_dir / ".env"
     load_dotenv(env_path if env_path.exists() else None, override=False)
 
-    primary_model = os.getenv("PRIMARY_MODEL", "phi4-mini").strip() or "phi4-mini"
-    available_models = _parse_available_models(os.getenv("AVAILABLE_MODELS"), primary_model)
+    primary_model = _clean_env_value(os.getenv("PRIMARY_MODEL")) or "phi4-mini"
+    available_models = _parse_available_models(_clean_env_value(os.getenv("AVAILABLE_MODELS")), primary_model)
 
-    public_key = os.getenv("LANGFUSE_PUBLIC_KEY", "").strip() or None
-    secret_key = os.getenv("LANGFUSE_SECRET_KEY", "").strip() or None
-    langfuse_host = os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com").strip()
-    langfuse_project_name = os.getenv("LANGFUSE_PROJECT_NAME", "").strip() or None
-    log_level = os.getenv("LOG_LEVEL", "INFO").strip().upper() or "INFO"
+    public_key = _clean_env_value(os.getenv("LANGFUSE_PUBLIC_KEY")) or None
+    secret_key = _clean_env_value(os.getenv("LANGFUSE_SECRET_KEY")) or None
+    langfuse_host = (
+        _clean_env_value(os.getenv("LANGFUSE_HOST"))
+        or _clean_env_value(os.getenv("LANGFUSE_BASE_URL"))
+        or "https://cloud.langfuse.com"
+    )
+    langfuse_project_name = _clean_env_value(os.getenv("LANGFUSE_PROJECT_NAME")) or None
+    log_level = (_clean_env_value(os.getenv("LOG_LEVEL")) or "INFO").upper()
+    ollama_host = _clean_env_value(os.getenv("OLLAMA_HOST")) or "127.0.0.1"
+    ollama_port = int(_clean_env_value(os.getenv("OLLAMA_PORT")) or "11434")
 
     return Settings(
-        ollama_host=os.getenv("OLLAMA_HOST", "127.0.0.1").strip() or "127.0.0.1",
-        ollama_port=int(os.getenv("OLLAMA_PORT", "11434")),
+        ollama_host=ollama_host,
+        ollama_port=ollama_port,
         primary_model=primary_model,
         available_models=available_models,
         langfuse_public_key=public_key,
