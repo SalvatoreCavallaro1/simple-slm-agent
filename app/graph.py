@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Mapping, Sequence
 from contextlib import contextmanager
 from typing import Any, Iterator, TypedDict
 
@@ -12,7 +13,7 @@ from .config import Settings, load_settings
 from .evaluator import evaluate_response
 from .model_registry import get_model
 from .ollama_client import OllamaClient
-from .prompts import build_messages
+from .prompts import build_messages, extract_latest_user_message, normalize_conversation
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +21,7 @@ logger = logging.getLogger(__name__)
 class GraphState(TypedDict, total=False):
     input: str
     model: str
+    conversation: list[dict[str, str]]
     messages: list[dict[str, str]]
     response: str
     started_at: float
@@ -73,11 +75,12 @@ def build_graph(
     workflow = StateGraph(GraphState)
 
     def input_node(state: GraphState) -> GraphState:
+        prompt_messages = build_messages(messages=state["conversation"])
         logger.info(
             "Prepared prompt messages",
             extra={"graph_node": "input_node", "model": state["model"]},
         )
-        return {"messages": build_messages(state["input"])}
+        return {"messages": prompt_messages}
 
     def model_node(state: GraphState) -> GraphState:
         with _observation(
@@ -145,9 +148,10 @@ def build_graph(
 
 
 def run_graph(
-    prompt: str,
+    prompt: str | None = None,
     model: str | None = None,
     *,
+    messages: Sequence[Mapping[str, object]] | None = None,
     settings: Settings | None = None,
     ollama_client: OllamaClient | None = None,
     langfuse_client: Langfuse | None = None,
@@ -156,12 +160,18 @@ def run_graph(
     selected_model = get_model(model, runtime_settings)
     client = ollama_client or OllamaClient.from_settings(runtime_settings)
     graph = build_graph(client, runtime_settings, langfuse_client=langfuse_client)
+    conversation = normalize_conversation(prompt=prompt, messages=messages)
+    latest_user_input = extract_latest_user_message(conversation)
 
     with _observation(
         langfuse_client,
         name="graph_execution",
         as_type="chain",
-        input={"prompt": prompt, "model": selected_model},
+        input={
+            "prompt": latest_user_input,
+            "messages": conversation,
+            "model": selected_model,
+        },
         metadata=_langfuse_metadata(
             runtime_settings,
             {"available_models": list(runtime_settings.available_models)},
@@ -169,8 +179,9 @@ def run_graph(
     ) as observation:
         final_state = graph.invoke(
             {
-                "input": prompt,
+                "input": latest_user_input,
                 "model": selected_model,
+                "conversation": conversation,
                 "started_at": time.perf_counter(),
             }
         )

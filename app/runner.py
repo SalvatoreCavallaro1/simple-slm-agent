@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from langfuse import Langfuse
@@ -37,9 +38,10 @@ def _flush_langfuse(client: Langfuse | None) -> None:
 
 
 def run_prompt(
-    prompt: str,
+    prompt: str | None = None,
     *,
     model: str | None = None,
+    messages: Sequence[Mapping[str, object]] | None = None,
     settings: Settings | None = None,
     ollama_client: OllamaClient | None = None,
 ) -> dict[str, Any]:
@@ -50,6 +52,7 @@ def run_prompt(
         result = run_graph(
             prompt,
             model=model,
+            messages=messages,
             settings=runtime_settings,
             ollama_client=ollama_client,
             langfuse_client=langfuse_client,

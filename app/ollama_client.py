@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
+from typing import Iterator
 from typing import Any
 from urllib.parse import urlparse
 
@@ -11,6 +13,10 @@ from .config import Settings, load_settings
 
 class OllamaClientError(RuntimeError):
     """Raised when the local Ollama API request fails."""
+
+
+class OllamaTimeoutError(OllamaClientError):
+    """Raised when the local Ollama API request times out."""
 
 
 @dataclass(slots=True)
@@ -69,8 +75,12 @@ class OllamaClient:
                 timeout=self.timeout_s,
             )
             response.raise_for_status()
+        except requests.ReadTimeout as exc:
+            raise OllamaTimeoutError(
+                f"Ollama timed out after {self.timeout_s} seconds for model '{model}' at {self.base_url}."
+            ) from exc
         except requests.RequestException as exc:
-            raise OllamaClientError(f"Failed to reach local Ollama at {self.base_url}.") from exc
+            raise OllamaClientError(f"Local Ollama request failed at {self.base_url}.") from exc
 
         data = response.json()
         message = data.get("message")
@@ -80,3 +90,48 @@ class OllamaClient:
             raise OllamaClientError("Ollama response did not include message.content.")
 
         return content
+
+    def stream_chat(
+        self,
+        model: str,
+        messages: list[dict[str, str]],
+        temperature: float = 0,
+    ) -> Iterator[str]:
+        payload: dict[str, Any] = {
+            "model": model,
+            "messages": messages,
+            "stream": True,
+            "options": {"temperature": temperature},
+        }
+
+        try:
+            with self.session.post(
+                f"{self.base_url}/api/chat",
+                json=payload,
+                timeout=self.timeout_s,
+                stream=True,
+            ) as response:
+                response.raise_for_status()
+
+                for raw_line in response.iter_lines(decode_unicode=True):
+                    if not raw_line:
+                        continue
+
+                    try:
+                        data = json.loads(raw_line)
+                    except json.JSONDecodeError as exc:
+                        raise OllamaClientError("Ollama stream returned invalid JSON.") from exc
+
+                    message = data.get("message")
+                    content = message.get("content") if isinstance(message, dict) else None
+                    if isinstance(content, str) and content:
+                        yield content
+
+                    if data.get("done") is True:
+                        return
+        except requests.ReadTimeout as exc:
+            raise OllamaTimeoutError(
+                f"Ollama timed out after {self.timeout_s} seconds for model '{model}' at {self.base_url}."
+            ) from exc
+        except requests.RequestException as exc:
+            raise OllamaClientError(f"Local Ollama streaming request failed at {self.base_url}.") from exc

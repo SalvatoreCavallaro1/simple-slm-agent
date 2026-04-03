@@ -81,4 +81,5 @@ def load_settings() -> Settings:
         langfuse_host=langfuse_host,
         langfuse_project_name=langfuse_project_name,
         log_level=log_level,
+        request_timeout_s=int(_clean_env_value(os.getenv("REQUEST_TIMEOUT_S")) or "120"),
     )

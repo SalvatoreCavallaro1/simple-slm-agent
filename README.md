@@ -20,7 +20,8 @@ This project only supports local Ollama calls.
 
 - allowed hosts: `localhost`, `127.0.0.1`
 - default Ollama endpoint: `http://127.0.0.1:11434/api/chat`
-- streaming is disabled to keep the example simple
+- `/run` returns a completed response
+- `/stream` is available for incremental chat UI updates
 
 ## Quick Start
 
@@ -105,6 +106,7 @@ PRIMARY_MODEL=phi4-mini
 AVAILABLE_MODELS=phi4-mini,qwen3:4b,llama3.2:3b
 MODEL=
 LOG_LEVEL=INFO
+REQUEST_TIMEOUT_S=120
 ```
 
 Notes:
@@ -112,6 +114,7 @@ Notes:
 - `PRIMARY_MODEL` is the default model for the app
 - `AVAILABLE_MODELS` is the allowed model list
 - `MODEL` is an optional runtime override
+- `REQUEST_TIMEOUT_S` controls how long the app waits for Ollama before failing the request
 - models listed in `AVAILABLE_MODELS` should also be pulled into Ollama
 
 To verify Ollama is running:
@@ -198,6 +201,12 @@ Windows PowerShell:
 .\scripts\run_api.ps1
 ```
 
+Open the built-in chat UI:
+
+```text
+http://127.0.0.1:8000/chat
+```
+
 Send a request:
 
 ```bash
@@ -207,6 +216,46 @@ curl -X POST http://127.0.0.1:8000/run \
 ```
 
 The FastAPI server is intended for local use only and binds to `127.0.0.1`.
+
+If Ollama exceeds `REQUEST_TIMEOUT_S`, `/run` now returns `504 Gateway Timeout` with a clearer model-specific message.
+
+### Web Chat
+
+The built-in chat UI is served by the same FastAPI app and requires no extra frontend tooling.
+
+To run it:
+
+1. make sure Ollama is already running locally on `127.0.0.1:11434`
+2. start the FastAPI server with `bash scripts/run_api.sh` or `.\scripts\run_api.ps1`
+3. open `http://127.0.0.1:8000/chat` in your browser
+
+- route: `http://127.0.0.1:8000/chat`
+- model selector populated from `AVAILABLE_MODELS`
+- multi-turn context by sending the full `messages` history on each request
+- streaming UI updates from `/stream`, so slow models no longer look frozen while generating
+- browser-managed transcript, so the backend stays stateless
+
+You can also send a full conversation over the API:
+
+```bash
+curl -X POST http://127.0.0.1:8000/run \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"model\":\"phi4-mini\",
+    \"messages\":[
+      {\"role\":\"user\",\"content\":\"Hi\"},
+      {\"role\":\"assistant\",\"content\":\"Hello, how can I help?\"},
+      {\"role\":\"user\",\"content\":\"Summarize retrieval-augmented generation\"}
+    ]
+  }"
+```
+
+Rules:
+
+- use either `prompt` or `messages`
+- `messages` accepts `user` and `assistant` roles
+- the app still prepends its own internal system prompt before calling Ollama
+- `/run` returns a complete JSON response, while `/stream` emits newline-delimited JSON events for incremental UI updates
 
 ### Switch Models
 
@@ -266,7 +315,7 @@ Langfuse spans:
 
 The LangGraph pipeline currently contains three nodes:
 
-- `input_node`: takes the raw user prompt and converts it into the message list sent to the model
+- `input_node`: takes the normalized conversation and converts it into the message list sent to the model
 - `model_node`: calls Ollama with the selected model, captures the generated response, and emits the `model_call` trace
 - `evaluator_node`: computes simple output metrics such as latency, word count, char count, and timestamp, then emits the `evaluation` trace
 
@@ -276,14 +325,15 @@ Prompt templates currently live in `app/prompts.py`.
 
 Today the flow is:
 
-1. the raw question enters the graph as `state["input"]`
-2. `input_node` calls `build_messages(state["input"])`
-3. `build_messages()` returns the message list sent to Ollama
+1. the request is normalized into a conversation of `user` and `assistant` turns
+2. the latest user turn is stored as `state["input"]` for evaluation metadata
+3. `input_node` calls `build_messages(messages=state["conversation"])`
+4. `build_messages()` prepends the internal system prompt and returns the final list sent to Ollama
 
 The current prompt setup is intentionally simple:
 
 - `SYSTEM_PROMPT` defines the default assistant behavior
-- `build_messages(prompt)` returns one system message plus one user message
+- `build_messages(...)` returns one system message plus the normalized conversation history
 
 If you want to change prompt behavior:
 

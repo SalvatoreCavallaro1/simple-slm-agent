@@ -24,9 +24,11 @@ def test_load_settings_strips_wrapping_quotes_from_env(monkeypatch) -> None:
     monkeypatch.setenv("LANGFUSE_PUBLIC_KEY", '"pk-test"')
     monkeypatch.setenv("LANGFUSE_SECRET_KEY", "'sk-test'")
     monkeypatch.setenv("OLLAMA_PORT", '"11435"')
+    monkeypatch.setenv("REQUEST_TIMEOUT_S", '"240"')
 
     settings = load_settings()
 
     assert settings.langfuse_public_key == "pk-test"
     assert settings.langfuse_secret_key == "sk-test"
     assert settings.ollama_port == 11435
+    assert settings.request_timeout_s == 240

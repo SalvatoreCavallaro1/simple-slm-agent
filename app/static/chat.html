@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SLM Chat</title>
+    <link rel="stylesheet" href="/static/chat.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Local-first LangGraph playground</p>
+          <h1>SLM Chat</h1>
+          <p class="lede">
+            A minimal chat UI running on top of the existing FastAPI and Ollama flow.
+            Every turn sends the full conversation so the model keeps context without server-side sessions.
+          </p>
+        </div>
+
+        <div class="hero-controls">
+          <label class="control" for="modelSelect">
+            <span>Model</span>
+            <select id="modelSelect" name="model"></select>
+          </label>
+          <button id="resetButton" class="ghost-button" type="button">New chat</button>
+        </div>
+      </header>
+
+      <section class="workspace">
+        <section class="chat-panel">
+          <div id="messages" class="messages" aria-live="polite"></div>
+
+          <form id="composer" class="composer">
+            <label class="sr-only" for="promptInput">Message</label>
+            <textarea
+              id="promptInput"
+              name="prompt"
+              rows="1"
+              placeholder="Ask something about APIs, LangGraph, or your local models..."
+            ></textarea>
+
+            <div class="composer-actions">
+              <p id="status" class="status" data-tone="neutral">Loading chat configuration...</p>
+              <button id="sendButton" class="primary-button" type="submit">Send</button>
+            </div>
+          </form>
+        </section>
+
+        <aside class="inspector">
+          <div class="inspector-card">
+            <p class="eyebrow">Run details</p>
+            <dl class="metric-list">
+              <div>
+                <dt>Model</dt>
+                <dd id="metricModel">-</dd>
+              </div>
+              <div>
+                <dt>Latency</dt>
+                <dd id="metricLatency">-</dd>
+              </div>
+              <div>
+                <dt>Words</dt>
+                <dd id="metricWords">-</dd>
+              </div>
+              <div>
+                <dt>Characters</dt>
+                <dd id="metricChars">-</dd>
+              </div>
+              <div>
+                <dt>Timestamp</dt>
+                <dd id="metricTimestamp">-</dd>
+              </div>
+              <div>
+                <dt>Turns in view</dt>
+                <dd id="metricTurns">0</dd>
+              </div>
+            </dl>
+          </div>
+
+          <div class="inspector-card">
+            <p class="eyebrow">Notes</p>
+            <p class="inspector-note">
+              The browser keeps the transcript locally and sends it back on every request.
+              That keeps the backend simple while preserving multi-turn context.
+            </p>
+          </div>
+        </aside>
+      </section>
+    </main>
+
+    <script src="/static/chat.js" defer></script>
+  </body>
+</html>

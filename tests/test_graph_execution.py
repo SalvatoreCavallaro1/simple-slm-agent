@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from app.config import Settings
 from app.graph import run_graph
+from app.prompts import SYSTEM_PROMPT
 
 
 class FakeOllamaClient:
@@ -45,3 +46,28 @@ def test_graph_runs_and_returns_expected_keys() -> None:
     assert result["metrics"]["char_count"] == len(result["response"])
     assert result["metrics"]["latency_ms"] >= 0
     assert client.calls[0]["temperature"] == 0
+
+
+def test_graph_preserves_multi_turn_history() -> None:
+    settings = Settings(
+        primary_model="phi4-mini",
+        available_models=("phi4-mini", "qwen3:4b"),
+    )
+    client = FakeOllamaClient()
+    conversation = [
+        {"role": "user", "content": "Hello there"},
+        {"role": "assistant", "content": "Hi, what do you need?"},
+        {"role": "user", "content": "Explain what an API gateway is"},
+    ]
+
+    result = run_graph(
+        messages=conversation,
+        settings=settings,
+        ollama_client=client,
+    )
+
+    assert result["input"] == "Explain what an API gateway is"
+    assert client.calls[0]["messages"] == [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        *conversation,
+    ]
