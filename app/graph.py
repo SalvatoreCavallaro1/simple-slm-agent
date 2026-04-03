@@ -7,6 +7,7 @@ from contextlib import contextmanager
 from typing import Any, Iterator, TypedDict
 
 from langfuse import Langfuse
+from langgraph.config import get_stream_writer
 from langgraph.graph import END, START, StateGraph
 
 from .config import Settings, load_settings
@@ -23,6 +24,7 @@ class GraphState(TypedDict, total=False):
     model: str
     conversation: list[dict[str, str]]
     messages: list[dict[str, str]]
+    stream_tokens: bool
     response: str
     started_at: float
     result: dict[str, Any]
@@ -83,6 +85,9 @@ def build_graph(
         return {"messages": prompt_messages}
 
     def model_node(state: GraphState) -> GraphState:
+        stream_tokens = state.get("stream_tokens", False)
+        writer = get_stream_writer()
+
         with _observation(
             langfuse_client,
             name="model_call",
@@ -92,11 +97,22 @@ def build_graph(
                 {"model": state["model"], "temperature": 0},
             ),
         ) as observation:
-            response = ollama_client.chat(
-                model=state["model"],
-                messages=state["messages"],
-                temperature=0,
-            )
+            if stream_tokens:
+                chunks: list[str] = []
+                for chunk in ollama_client.stream_chat(
+                    model=state["model"],
+                    messages=state["messages"],
+                    temperature=0,
+                ):
+                    chunks.append(chunk)
+                    writer({"type": "token", "content": chunk})
+                response = "".join(chunks)
+            else:
+                response = ollama_client.chat(
+                    model=state["model"],
+                    messages=state["messages"],
+                    temperature=0,
+                )
             observation.update(output={"response": response})
 
         logger.info(
@@ -182,6 +198,7 @@ def run_graph(
                 "input": latest_user_input,
                 "model": selected_model,
                 "conversation": conversation,
+                "stream_tokens": False,
                 "started_at": time.perf_counter(),
             }
         )

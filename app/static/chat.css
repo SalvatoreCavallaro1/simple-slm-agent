@@ -360,6 +360,11 @@ button:disabled {
   background: rgba(255, 255, 255, 0.55);
 }
 
+.activity-item.activity-empty {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
 .activity-topline {
   display: flex;
   align-items: center;

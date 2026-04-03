@@ -1,18 +1,3 @@
-const GRAPH_STEPS = [
-  {
-    node: "input_node",
-    idleDetail: "Waiting for the next prompt normalization step.",
-  },
-  {
-    node: "model_node",
-    idleDetail: "Waiting for the next Ollama model call.",
-  },
-  {
-    node: "evaluator_node",
-    idleDetail: "Waiting to compute metrics for the next response.",
-  },
-];
-
 const state = {
   messages: [],
   pending: false,
@@ -52,12 +37,7 @@ function setPending(isPending) {
 }
 
 function createInitialGraphActivity() {
-  return GRAPH_STEPS.map((step) => ({
-    node: step.node,
-    phase: "idle",
-    detail: step.idleDetail,
-    timestamp: null,
-  }));
+  return [];
 }
 
 function humanizePhase(phase) {
@@ -88,6 +68,14 @@ function formatActivityTimestamp(timestamp) {
 
 function renderGraphActivity() {
   elements.graphActivity.replaceChildren();
+
+  if (state.graphActivity.length === 0) {
+    const emptyState = document.createElement("div");
+    emptyState.className = "activity-item activity-empty";
+    emptyState.textContent = "Waiting for the next graph run.";
+    elements.graphActivity.appendChild(emptyState);
+    return;
+  }
 
   for (const item of state.graphActivity) {
     const wrapper = document.createElement("article");
@@ -126,18 +114,31 @@ function resetGraphActivity() {
 }
 
 function applyGraphEvent(event) {
-  state.graphActivity = state.graphActivity.map((item) => {
-    if (item.node !== event.node) {
-      return item;
-    }
+  const existingIndex = state.graphActivity.findIndex((item) => item.node === event.node);
+  if (existingIndex === -1) {
+    state.graphActivity = [
+      ...state.graphActivity,
+      {
+        node: event.node,
+        phase: event.phase || "idle",
+        detail: event.detail || "Node event received.",
+        timestamp: event.timestamp || null,
+      },
+    ];
+  } else {
+    state.graphActivity = state.graphActivity.map((item, index) => {
+      if (index !== existingIndex) {
+        return item;
+      }
 
-    return {
-      ...item,
-      phase: event.phase || item.phase,
-      detail: event.detail || item.detail,
-      timestamp: event.timestamp || item.timestamp,
-    };
-  });
+      return {
+        ...item,
+        phase: event.phase || item.phase,
+        detail: event.detail || item.detail,
+        timestamp: event.timestamp || item.timestamp,
+      };
+    });
+  }
   renderGraphActivity();
 }
 
