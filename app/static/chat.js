@@ -1,7 +1,23 @@
+const GRAPH_STEPS = [
+  {
+    node: "input_node",
+    idleDetail: "Waiting for the next prompt normalization step.",
+  },
+  {
+    node: "model_node",
+    idleDetail: "Waiting for the next Ollama model call.",
+  },
+  {
+    node: "evaluator_node",
+    idleDetail: "Waiting to compute metrics for the next response.",
+  },
+];
+
 const state = {
   messages: [],
   pending: false,
   lastRun: null,
+  graphActivity: createInitialGraphActivity(),
 };
 
 const elements = {
@@ -18,6 +34,7 @@ const elements = {
   metricChars: document.getElementById("metricChars"),
   metricTimestamp: document.getElementById("metricTimestamp"),
   metricTurns: document.getElementById("metricTurns"),
+  graphActivity: document.getElementById("graphActivity"),
 };
 
 function setStatus(message, tone = "neutral") {
@@ -32,6 +49,96 @@ function setPending(isPending) {
   elements.resetButton.disabled = isPending;
   elements.sendButton.disabled = isPending;
   elements.sendButton.textContent = isPending ? "Thinking..." : "Send";
+}
+
+function createInitialGraphActivity() {
+  return GRAPH_STEPS.map((step) => ({
+    node: step.node,
+    phase: "idle",
+    detail: step.idleDetail,
+    timestamp: null,
+  }));
+}
+
+function humanizePhase(phase) {
+  switch (phase) {
+    case "running":
+      return "Running";
+    case "completed":
+      return "Done";
+    case "failed":
+      return "Failed";
+    default:
+      return "Idle";
+  }
+}
+
+function formatActivityTimestamp(timestamp) {
+  if (!timestamp) {
+    return "No events yet";
+  }
+
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) {
+    return timestamp;
+  }
+
+  return date.toLocaleTimeString();
+}
+
+function renderGraphActivity() {
+  elements.graphActivity.replaceChildren();
+
+  for (const item of state.graphActivity) {
+    const wrapper = document.createElement("article");
+    wrapper.className = "activity-item";
+
+    const topline = document.createElement("div");
+    topline.className = "activity-topline";
+
+    const node = document.createElement("p");
+    node.className = "activity-node";
+    node.textContent = item.node;
+
+    const phase = document.createElement("span");
+    phase.className = "activity-phase";
+    phase.dataset.phase = item.phase;
+    phase.textContent = humanizePhase(item.phase);
+
+    topline.append(node, phase);
+
+    const detail = document.createElement("p");
+    detail.className = "activity-detail";
+    detail.textContent = item.detail;
+
+    const time = document.createElement("p");
+    time.className = "activity-time";
+    time.textContent = formatActivityTimestamp(item.timestamp);
+
+    wrapper.append(topline, detail, time);
+    elements.graphActivity.appendChild(wrapper);
+  }
+}
+
+function resetGraphActivity() {
+  state.graphActivity = createInitialGraphActivity();
+  renderGraphActivity();
+}
+
+function applyGraphEvent(event) {
+  state.graphActivity = state.graphActivity.map((item) => {
+    if (item.node !== event.node) {
+      return item;
+    }
+
+    return {
+      ...item,
+      phase: event.phase || item.phase,
+      detail: event.detail || item.detail,
+      timestamp: event.timestamp || item.timestamp,
+    };
+  });
+  renderGraphActivity();
 }
 
 function resizeInput() {
@@ -150,6 +257,7 @@ function renderRunDetails() {
 function resetConversation() {
   state.messages = [];
   state.lastRun = null;
+  resetGraphActivity();
   renderMessages();
   renderRunDetails();
   elements.input.value = "";
@@ -232,6 +340,7 @@ async function sendMessage(event) {
   state.messages = [...conversationForRequest];
   const assistantIndex = appendAssistantPlaceholder();
   state.lastRun = null;
+  resetGraphActivity();
   setPending(true);
   renderMessages();
   renderRunDetails();
@@ -294,6 +403,11 @@ async function sendMessage(event) {
           continue;
         }
 
+        if (payload.type === "graph") {
+          applyGraphEvent(payload);
+          continue;
+        }
+
         if (payload.type === "token") {
           appendAssistantChunk(assistantIndex, payload.content);
           renderMessageAt(assistantIndex);
@@ -326,7 +440,9 @@ async function sendMessage(event) {
     const trailingLine = buffer.trim();
     if (trailingLine) {
       const payload = JSON.parse(trailingLine);
-      if (payload.type === "done") {
+      if (payload.type === "graph") {
+        applyGraphEvent(payload);
+      } else if (payload.type === "done") {
         setAssistantMessage(assistantIndex, payload.result.response);
         state.lastRun = payload.result;
         renderMessageAt(assistantIndex);
@@ -376,6 +492,7 @@ function handleTextareaKeydown(event) {
 async function init() {
   renderMessages();
   renderRunDetails();
+  renderGraphActivity();
   resizeInput();
   setPending(true);
 

@@ -346,10 +346,79 @@ button:disabled {
   text-align: right;
 }
 
-.inspector-note {
+.activity-list {
+  display: grid;
+  gap: 12px;
+}
+
+.activity-item {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.activity-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.activity-node {
+  margin: 0;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.activity-phase {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 92px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.activity-phase[data-phase="idle"] {
+  background: rgba(95, 108, 111, 0.12);
+  color: var(--muted);
+}
+
+.activity-phase[data-phase="running"] {
+  background: rgba(31, 122, 116, 0.14);
+  color: var(--accent-strong);
+}
+
+.activity-phase[data-phase="completed"] {
+  background: rgba(31, 122, 116, 0.18);
+  color: var(--success);
+}
+
+.activity-phase[data-phase="failed"] {
+  background: rgba(158, 61, 48, 0.14);
+  color: var(--danger);
+}
+
+.activity-detail,
+.activity-time {
   margin: 0;
   color: var(--muted);
-  line-height: 1.6;
+}
+
+.activity-detail {
+  line-height: 1.55;
+}
+
+.activity-time {
+  font-size: 0.82rem;
 }
 
 .sr-only {
