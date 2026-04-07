@@ -10,7 +10,7 @@ if [[ -f "${ROOT_DIR}/.env" ]]; then
   set +a
 fi
 
-MODELS="${AVAILABLE_MODELS:-phi4-mini,qwen3:4b,llama3.2:3b}"
+MODELS="${AVAILABLE_MODELS:-phi4-mini,qwen3:4b,llama3.2:3b,qwen2.5-coder:7b,phi4-mini-reasoning,gemma4:e4b,gemma4:e2b}"
 IFS=',' read -r -a MODEL_ARRAY <<< "${MODELS}"
 
 for model in "${MODEL_ARRAY[@]}"; do

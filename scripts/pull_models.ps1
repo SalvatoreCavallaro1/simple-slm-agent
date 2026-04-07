@@ -18,7 +18,7 @@ if (Test-Path $envFile) {
 
 $models = $env:AVAILABLE_MODELS
 if ([string]::IsNullOrWhiteSpace($models)) {
-    $models = "phi4-mini,qwen3:4b,llama3.2:3b"
+    $models = "phi4-mini,qwen3:4b,llama3.2:3b,qwen2.5-coder:7b,phi4-mini-reasoning,gemma4:e4b,gemma4:e2b"
 }
 
 $models.Split(",") | ForEach-Object {
